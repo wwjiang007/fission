@@ -7,6 +7,8 @@
      * [Get and Run Fission: GKE or other Cloud](#get-and-run-fission-gke-or-other-cloud)
      * [Install the client CLI](#install-the-client-cli)
      * [Run an example](#run-an-example)
+     * [Enable Persistent Function Logs (Optional)](#enable-persistent-function-logs-optional)
+     * [Use the web based Fission-ui (Optional)](#use-the-web-based-fission-ui-optional)
 
 ## Running Fission on your Cluster
 
@@ -80,6 +82,18 @@ svc```).  Then:
   $ export FISSION_ROUTER=$(kubectl --namespace fission get svc router -o=jsonpath='{..ip}')
 ```
 
+### Get and Run Fission: OpenShift
+
+If you're using OpenShift, it's possible to run Fission on it! The deployment
+template needs to be deployed as a user with cluster-admin permissions (like `system:admin`), as it needs to create a `ClusterRole` for deploying function containers from the `fission` namespace/project.
+
+Identically as with Kubernetes, you need to set the FISSION_URL and FISSION_ROUTER environment variables. If you're using minishift, use these commands:
+
+```
+  $ export FISSION_URL=http://$(minishift ip):31313¬
+  $ export FISSION_ROUTER=$(minishift ip):31314¬
+```
+
 ### Install the client CLI
 
 Get the CLI binary for Mac:
@@ -110,3 +124,62 @@ Finally, you're ready to use Fission!
   $ curl http://$FISSION_ROUTER/hello
   Hello, world!
 ```
+
+
+### Enable Persistent Function Logs (Optional)
+
+Fission uses InfluxDB to store logs and fluentd to forward them from
+function pods into InfluxDB.  To setup both InfluxDB and fluentd:
+
+Edit `fission-logger.yaml` to add a username and password for the
+Influxdb deployment.  Then:
+
+```
+  $ kubectl create -f fission-logger.yaml
+```
+
+On the client side,
+
+If you're using minikube or a local cluster:
+
+```
+$ export FISSION_LOGDB=http://$(minikube ip):31315
+```
+
+If you're using GKE or other cloud:
+
+```
+$ export FISSION_LOGDB=http://$(kubectl --namespace fission get svc influxdb -o=jsonpath='{..ip}'):8086
+```
+
+That's it for setup.  You can now use this to view function logs:
+
+```
+  $ fission function logs --name hello
+```
+
+You can also list the all the pods that have hosted the function
+(including ones that aren't alive any more) and view logs for a
+particular pod:
+
+```
+  $ fission function pods --name hello
+
+  $ fission function logs --name hello --pod <pod name>
+```
+
+### Use the web based Fission-ui (Optional)
+
+[Fission-ui](https://github.com/fission/fission-ui) is the ui for fission maintained by the community.
+It allows users to observe and manage fission. It also provides a simple online development environment for serverless functions.
+
+To setup Fission-ui with fission in k8s is simple:
+
+```bash
+  # After Fission deployed
+  $ kubectl create -f https://raw.githubusercontent.com/fission/fission-ui/master/docker/fission-ui.yaml
+```
+
+Then open `http://node-ip:31319` to use Fission-ui.
+
+For more infomation, please check out [Fission-ui Readme](https://github.com/fission/fission-ui/blob/master/README.md).

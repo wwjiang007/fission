@@ -1,5 +1,5 @@
-hash: fb2f38693c5f2fade3db9434c266743d0f9ea9b5f878b44e79763e248136dcf2
-updated: 2016-11-14T01:06:12.764919869-08:00
+hash: 51b5eda27974aac228f42002cb0a9f89bf2f79d36a574a3694c142c2f83e4042
+updated: 2017-03-24T11:01:00.667996869+08:00
 imports:
 - name: github.com/blang/semver
   version: 60ec3488bfea7cca02b021d106d9911120d25fe9
@@ -69,9 +69,15 @@ imports:
 - name: github.com/gorilla/context
   version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
 - name: github.com/gorilla/handlers
-  version: ee54c7b44cab12289237fb8631314790076e728b
+  version: 3a5767ca75ece5f7f1440b1d16975247f8d8b221
 - name: github.com/gorilla/mux
-  version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+  version: 392c28fe23e1c45ddba891b0320b3b5df220beea
+- name: github.com/influxdata/influxdb
+  version: b7bb7e8359642b6e071735b50ae41f5eb343fd42
+  subpackages:
+  - client/v2
+  - models
+  - pkg/escape
 - name: github.com/jonboulle/clockwork
   version: 2eee05ed794112d45db504eb05aa693efd2b8b09
 - name: github.com/juju/ratelimit
@@ -88,10 +94,12 @@ imports:
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
+- name: github.com/robfig/cron
+  version: df38d32658d8788cd446ba74db4bb5375c4b0cb3
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/Sirupsen/logrus
-  version: d26492970760ca5d33129d2d799e34be5c4782eb
+  version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: github.com/spf13/pflag
   version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - name: github.com/ugorji/go
@@ -99,7 +107,7 @@ imports:
   subpackages:
   - codec
 - name: github.com/urfave/cli
-  version: a14d7d367bc02b1f57d88de97926727f2d936387
+  version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
 - name: golang.org/x/net
   version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
@@ -158,13 +166,6 @@ imports:
 - name: k8s.io/client-go
   version: 843f7c4f28b1f647f664f883697107d5c02c5acc
   subpackages:
-  - 1.4/kubernetes
-  - 1.4/pkg/api
-  - 1.4/pkg/api/v1
-  - 1.4/pkg/apis/extensions/v1beta1
-  - 1.4/pkg/labels
-  - 1.4/pkg/util/intstr
-  - 1.4/rest
   - 1.5/discovery
   - 1.5/kubernetes
   - 1.5/kubernetes/typed/apps/v1alpha1

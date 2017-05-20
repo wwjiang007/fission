@@ -32,6 +32,7 @@ import (
 type API struct {
 	FunctionStore
 	HTTPTriggerStore
+	TimeTriggerStore
 	EnvironmentStore
 	WatchStore
 }
@@ -40,6 +41,7 @@ func MakeAPI(rs *ResourceStore) *API {
 	api := &API{
 		FunctionStore:    FunctionStore{ResourceStore: *rs},
 		HTTPTriggerStore: HTTPTriggerStore{ResourceStore: *rs},
+		TimeTriggerStore: TimeTriggerStore{ResourceStore: *rs},
 		EnvironmentStore: EnvironmentStore{ResourceStore: *rs},
 		WatchStore:       WatchStore{ResourceStore: *rs},
 	}
@@ -47,6 +49,7 @@ func MakeAPI(rs *ResourceStore) *API {
 }
 
 func (api *API) respondWithSuccess(w http.ResponseWriter, resp []byte) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, err := w.Write(resp)
 	if err != nil {
 		// this will probably fail too, but try anyway
@@ -62,6 +65,7 @@ func (api *API) respondWithError(w http.ResponseWriter, err error) {
 }
 
 func (api *API) HomeHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintf(w, "{\"message\": \"Fission API\", \"version\": \"0.1.0\"}\n")
 }
 
@@ -92,6 +96,12 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/v1/watches/{watch}", api.WatchApiGet).Methods("GET")
 	r.HandleFunc("/v1/watches/{watch}", api.WatchApiUpdate).Methods("PUT")
 	r.HandleFunc("/v1/watches/{watch}", api.WatchApiDelete).Methods("DELETE")
+
+	r.HandleFunc("/v1/triggers/time", api.TimeTriggerApiList).Methods("GET")
+	r.HandleFunc("/v1/triggers/time", api.TimeTriggerApiCreate).Methods("POST")
+	r.HandleFunc("/v1/triggers/time/{timeTrigger}", api.TimeTriggerApiGet).Methods("GET")
+	r.HandleFunc("/v1/triggers/time/{timeTrigger}", api.TimeTriggerApiUpdate).Methods("PUT")
+	r.HandleFunc("/v1/triggers/time/{timeTrigger}", api.TimeTriggerApiDelete).Methods("DELETE")
 
 	address := fmt.Sprintf(":%v", port)
 

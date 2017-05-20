@@ -28,6 +28,10 @@ func (ht HTTPTrigger) Key() string {
 	return ht.Metadata.Name
 }
 
+func (tt TimeTrigger) Key() string {
+	return tt.Metadata.Name
+}
+
 func (w Watch) Key() string {
 	return w.Metadata.Name
 }

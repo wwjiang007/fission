@@ -50,6 +50,13 @@ func assertNotFoundFails(err error, name string) {
 	assert(fe.Code == fission.ErrorNotFound, "error must be a not found error")
 }
 
+func assertCronSpecFails(err error) {
+	assert(err != nil, "using an invalid cron spec must fail")
+	fe, ok := err.(fission.Error)
+	assert(ok, "error must be a fission Error")
+	assert(fe.Code == fission.ErrorInvalidArgument, "error must be a invalid argument error")
+}
+
 func TestFunctionApi(t *testing.T) {
 	log.SetFormatter(&log.TextFormatter{DisableColors: true})
 
@@ -120,10 +127,79 @@ func TestFunctionApi(t *testing.T) {
 	assert(len(funcs) == 2,
 		"created two functions, but didn't find them")
 
+	funcs_url := g.client.Url + "/v1/functions"
+	resp, err := http.Get(funcs_url)
+	panicIf(err)
+	defer resp.Body.Close()
+	assert(resp.StatusCode == 200, "http get status code on /v1/functions")
+
+	var found bool = false
+	for _, b := range resp.Header["Content-Type"] {
+		if b == "application/json; charset=utf-8" {
+			found = true
+		}
+	}
+	assert(found, "incorrect response content type")
+
 	err = g.client.FunctionDelete(&fission.Metadata{Name: "foo"})
 	panicIf(err)
 	err = g.client.FunctionDelete(&fission.Metadata{Name: "bar"})
 	panicIf(err)
+}
+
+func TestFunctionVersionApi(t *testing.T) {
+	testFunc := &fission.Function{
+		Metadata: fission.Metadata{
+			Name: "foo",
+			Uid:  "",
+		},
+		Environment: fission.Metadata{
+			Name: "nodejs",
+			Uid:  "xxx",
+		},
+		Code: "code1",
+	}
+
+	testFunc.Code = "code1"
+	m, err := g.client.FunctionCreate(testFunc)
+	panicIf(err)
+	uid1 := m.Uid
+
+	testFunc.Code = "code2"
+	m, err = g.client.FunctionUpdate(testFunc)
+	panicIf(err)
+	uid2 := m.Uid
+
+	err = g.client.FunctionDelete(&fission.Metadata{Name: "foo", Uid: uid1})
+	panicIf(err)
+
+	f, err := g.client.FunctionGet(&fission.Metadata{Name: "foo"})
+	panicIf(err)
+	assert(f.Metadata.Uid == uid2, "deleted version1, but version2 does not exist")
+
+	testFunc.Code = "code3"
+	m, err = g.client.FunctionUpdate(testFunc)
+	panicIf(err)
+	uid3 := m.Uid
+
+	err = g.client.FunctionDelete(&fission.Metadata{Name: "foo", Uid: uid3})
+	panicIf(err)
+
+	f, err = g.client.FunctionGet(&fission.Metadata{Name: "foo"})
+	panicIf(err)
+	assert(f.Metadata.Uid == uid2, "deleted version3, but version2 does not exist")
+
+	testFunc.Code = "code4"
+	m, err = g.client.FunctionUpdate(testFunc)
+	panicIf(err)
+
+	err = g.client.FunctionDelete(&fission.Metadata{Name: "foo"})
+	panicIf(err)
+
+	funcs, err := g.client.FunctionList()
+	panicIf(err)
+	assert(len(funcs) == 0,
+		"created one function with two versions(2 and 4), delete without uid but cannot delete them all")
 }
 
 func TestHTTPTriggerApi(t *testing.T) {
@@ -262,6 +338,53 @@ func TestWatchApi(t *testing.T) {
 	assert(len(ws) == 2, "created two envs, but didn't find them")
 }
 
+func TestTimeTriggerApi(t *testing.T) {
+	testTrigger := &fission.TimeTrigger{
+		Metadata: fission.Metadata{
+			Name: "xxx",
+			Uid:  "yyy",
+		},
+		Cron: "0 30 * * * *",
+		Function: fission.Metadata{
+			Name: "foo",
+			Uid:  "",
+		},
+	}
+	_, err := g.client.TimeTriggerGet(&fission.Metadata{Name: "foo"})
+	assertNotFoundFails(err, "trigger")
+
+	m, err := g.client.TimeTriggerCreate(testTrigger)
+	panicIf(err)
+	defer g.client.TimeTriggerDelete(m)
+
+	_, err = g.client.TimeTriggerCreate(testTrigger)
+	assertNameReuseFails(err, "trigger")
+
+	tr, err := g.client.TimeTriggerGet(m)
+	panicIf(err)
+	testTrigger.Metadata.Uid = m.Uid
+	assert(*testTrigger == *tr, "trigger should match after reading")
+
+	testTrigger.Cron = "@hourly"
+	m2, err := g.client.TimeTriggerUpdate(testTrigger)
+	panicIf(err)
+
+	m.Uid = m2.Uid
+	tr, err = g.client.TimeTriggerGet(m)
+	panicIf(err)
+	testTrigger.Metadata.Uid = m.Uid
+	assert(*testTrigger == *tr, "trigger should match after reading")
+
+	testTrigger.Metadata.Name = "yyy"
+	testTrigger.Cron = "Not valid cron spec"
+	m, err = g.client.TimeTriggerCreate(testTrigger)
+	assertCronSpecFails(err)
+
+	ts, err := g.client.TimeTriggerList()
+	panicIf(err)
+	assert(len(ts) == 1, "created one trigger, but didn't find it")
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 
@@ -273,6 +396,7 @@ func TestMain(m *testing.M) {
 
 	ks.Delete(context.Background(), "Function", &etcdClient.DeleteOptions{Recursive: true})
 	ks.Delete(context.Background(), "HTTPTrigger", &etcdClient.DeleteOptions{Recursive: true})
+	ks.Delete(context.Background(), "TimeTrigger", &etcdClient.DeleteOptions{Recursive: true})
 	ks.Delete(context.Background(), "Environment", &etcdClient.DeleteOptions{Recursive: true})
 	ks.Delete(context.Background(), "Watch", &etcdClient.DeleteOptions{Recursive: true})
 
@@ -282,6 +406,15 @@ func TestMain(m *testing.M) {
 	resp, err := http.Get("http://localhost:8888/")
 	panicIf(err)
 	assert(resp.StatusCode == 200, "http get status code on root")
+
+	var found bool = false
+	for _, b := range resp.Header["Content-Type"] {
+		if b == "application/json; charset=utf-8" {
+			found = true
+		}
+	}
+	assert(found, "incorrect response content type")
+
 	_, err = ioutil.ReadAll(resp.Body)
 	panicIf(err)
 

@@ -39,15 +39,25 @@ func main() {
 	fnNameFlag := cli.StringFlag{Name: "name", Usage: "function name"}
 	fnEnvNameFlag := cli.StringFlag{Name: "env", Usage: "environment name for function"}
 	fnCodeFlag := cli.StringFlag{Name: "code", Usage: "local path or URL for source code"}
+	fnPackageFlag := cli.StringFlag{Name: "package", Usage: "local path or URL for binary package"}
 	fnUidFlag := cli.StringFlag{Name: "uid", Usage: "function uid, optional (use latest if unspecified)"}
+	fnPodFlag := cli.StringFlag{Name: "pod", Usage: "function pod name, optional (use latest if unspecified)"}
+	fnFollowFlag := cli.BoolFlag{Name: "follow, f", Usage: "specify if the logs should be streamed"}
+	fnDetailFlag := cli.BoolFlag{Name: "detail, d", Usage: "display detailed information"}
+	fnLogDBHostFlag := cli.StringFlag{Name: "dbhost", Usage: "log database host to connect to", EnvVar: "FISSION_LOGDB"}
+	fnLogDBTypeFlag := cli.StringFlag{Name: "dbtype", Usage: "log database type, e.g. influxdb (currently only influxdb is supported)"}
+	fnUserNameFlag := cli.StringFlag{Name: "username, u", Usage: "username for connecting log database"}
+	fnPasswordFlag := cli.StringFlag{Name: "password, p", Usage: "password for connecting log database"}
 	fnSubcommands := []cli.Command{
-		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
+		{Name: "create", Usage: "Create new function (and optionally, an HTTP route to it)", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag, htUrlFlag, htMethodFlag}, Action: fnCreate},
 		{Name: "get", Usage: "Get function source code", Flags: []cli.Flag{fnNameFlag, fnUidFlag}, Action: fnGet},
 		{Name: "edit", Usage: "Edit function source code in $EDITOR", Flags: []cli.Flag{fnNameFlag, fnUidFlag}, Action: fnEdit},
 		{Name: "getmeta", Usage: "Get function metadata", Flags: []cli.Flag{fnNameFlag, fnUidFlag}, Action: fnGetMeta},
-		{Name: "update", Usage: "Update function source code", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag}, Action: fnUpdate},
+		{Name: "update", Usage: "Update function source code", Flags: []cli.Flag{fnNameFlag, fnEnvNameFlag, fnCodeFlag, fnPackageFlag}, Action: fnUpdate},
 		{Name: "delete", Usage: "Delete function", Flags: []cli.Flag{fnNameFlag, fnUidFlag}, Action: fnDelete},
 		{Name: "list", Usage: "List all functions", Flags: []cli.Flag{}, Action: fnList},
+		{Name: "logs", Usage: "Display funtion logs", Flags: []cli.Flag{fnNameFlag, fnPodFlag, fnFollowFlag, fnDetailFlag, fnLogDBHostFlag, fnLogDBTypeFlag, fnUserNameFlag, fnPasswordFlag}, Action: fnLogs},
+		{Name: "pods", Usage: "Display funtion pods", Flags: []cli.Flag{fnNameFlag, fnLogDBHostFlag, fnLogDBTypeFlag, fnUserNameFlag, fnPasswordFlag}, Action: fnPods},
 	}
 
 	// httptriggers
@@ -60,6 +70,19 @@ func main() {
 		{Name: "update", Usage: "Update HTTP trigger", Flags: []cli.Flag{htNameFlag, htFnNameFlag, htFnUidFlag}, Action: htUpdate},
 		{Name: "delete", Usage: "Delete HTTP trigger", Flags: []cli.Flag{htNameFlag}, Action: htDelete},
 		{Name: "list", Usage: "List HTTP triggers", Flags: []cli.Flag{}, Action: htList},
+	}
+
+	// timetriggers
+	ttNameFlag := cli.StringFlag{Name: "name", Usage: "Time Trigger name"}
+	ttCronFlag := cli.StringFlag{Name: "cron", Usage: "Time Trigger cron spec ('0 30 * * *', '@every 5m', '@hourly')"}
+	ttFnNameFlag := cli.StringFlag{Name: "function", Usage: "Function name"}
+	ttFnUidFlag := cli.StringFlag{Name: "uid", Usage: "Function UID (optional; uses latest if unspecified)"}
+	ttSubcommands := []cli.Command{
+		{Name: "create", Aliases: []string{"add"}, Usage: "Create Time trigger", Flags: []cli.Flag{ttNameFlag, ttFnNameFlag, ttFnUidFlag, ttCronFlag}, Action: ttCreate},
+		{Name: "get", Usage: "Get Time trigger", Flags: []cli.Flag{}, Action: ttGet},
+		{Name: "update", Usage: "Update Time trigger", Flags: []cli.Flag{ttNameFlag, ttCronFlag}, Action: ttUpdate},
+		{Name: "delete", Usage: "Delete Time trigger", Flags: []cli.Flag{ttNameFlag}, Action: ttDelete},
+		{Name: "list", Usage: "List Time triggers", Flags: []cli.Flag{}, Action: ttList},
 	}
 
 	// environments
@@ -91,6 +114,7 @@ func main() {
 	app.Commands = []cli.Command{
 		{Name: "function", Aliases: []string{"fn"}, Usage: "Create, update and manage functions", Subcommands: fnSubcommands},
 		{Name: "httptrigger", Aliases: []string{"ht", "route"}, Usage: "Manage HTTP triggers (routes) for functions", Subcommands: htSubcommands},
+		{Name: "timetrigger", Aliases: []string{"tt", "timer"}, Usage: "Manage Time triggers (timers) for functions", Subcommands: ttSubcommands},
 		{Name: "environment", Aliases: []string{"env"}, Usage: "Manage environments", Subcommands: envSubcommands},
 		{Name: "watch", Aliases: []string{"w"}, Usage: "Manage watches", Subcommands: wSubCommands},
 

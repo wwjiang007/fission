@@ -14,17 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kubewatcher
+package logger
 
-import (
-	"k8s.io/client-go/1.5/pkg/watch"
-)
+import "sync"
 
 type (
-	Publisher interface {
-		// Publish an event to a "target".  Target's meaning depends on the
-		// publisher: it's a URL in the case of a webhook publisher, or a queue
-		// name in a queue-based publisher such as NATS.
-		Publish(event watch.Event, target string)
+	LogRequest struct {
+		Namespace   string `json:"namespace"`
+		Pod         string `json:"pod"`
+		Container   string `json:"container"`
+		FuncName    string `json:"funcname"`
+		FuncUid     string `json:"funcuid"`
+		ContainerID string `json:"-"`
+	}
+
+	logRequestTracker struct {
+		sync.RWMutex
+		logMap map[string]LogRequest
 	}
 )

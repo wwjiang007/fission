@@ -7,8 +7,10 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/fission/fission/controller"
 	"github.com/fission/fission/kubewatcher"
+	"github.com/fission/fission/logger"
 	"github.com/fission/fission/poolmgr"
 	"github.com/fission/fission/router"
+	"github.com/fission/fission/timer"
 )
 
 func runController(port int, etcdUrl string, filepath string) {
@@ -47,6 +49,18 @@ func runKubeWatcher(controllerUrl, routerUrl string) {
 	}
 }
 
+func runLogger() {
+	logger.Start()
+	log.Fatalf("Error: Logger exited.")
+}
+
+func runTimer(controllerUrl, routerUrl string) {
+	err := timer.Start(controllerUrl, routerUrl)
+	if err != nil {
+		log.Fatalf("Error starting timer: %v", err)
+	}
+}
+
 func getPort(portArg interface{}) int {
 	portArgStr := portArg.(string)
 	port, err := strconv.Atoi(portArgStr)
@@ -80,6 +94,8 @@ Usage:
   fission-bundle --routerPort=<port> [--controllerUrl=<url> --poolmgrUrl=<url>]
   fission-bundle --poolmgrPort=<port> [--controllerUrl=<url> --namespace=<namespace>]
   fission-bundle --kubewatcher [--controllerUrl=<url> --routerUrl=<url>]
+  fission-bundle --logger
+  fission-bundle --timer [--controllerUrl=<url> --routerUrl=<url>]
 Options:
   --controllerPort=<port>  Port that the controller should listen on.
   --routerPort=<port>      Port that the router should listen on.
@@ -91,6 +107,8 @@ Options:
   --filepath=<filepath>    Directory to store functions in.
   --namespace=<namespace>  Kubernetes namespace in which to run function containers. Defaults to 'fission-function'.
   --kubewatcher            Start Kubernetes events watcher.
+  --logger                 Start logger.
+  --timer 		           Start Timer.
 `
 	arguments, err := docopt.Parse(usage, nil, true, "fission-bundle", false)
 	if err != nil {
@@ -121,6 +139,14 @@ Options:
 
 	if arguments["--kubewatcher"] == true {
 		runKubeWatcher(controllerUrl, routerUrl)
+	}
+
+	if arguments["--logger"] == true {
+		runLogger()
+	}
+
+	if arguments["--timer"] == true {
+		runTimer(controllerUrl, routerUrl)
 	}
 
 	select {}

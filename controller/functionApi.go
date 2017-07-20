@@ -17,14 +17,16 @@ limitations under the License.
 package controller
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 
-	"encoding/json"
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 
-	"encoding/base64"
 	"github.com/fission/fission"
 )
 
@@ -48,6 +50,7 @@ func (api *API) FunctionApiCreate(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		api.respondWithError(w, err)
+		return
 	}
 
 	var f fission.Function
@@ -116,6 +119,7 @@ func (api *API) FunctionApiUpdate(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		api.respondWithError(w, err)
+		return
 	}
 
 	var f fission.Function
@@ -170,4 +174,34 @@ func (api *API) FunctionApiDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	api.respondWithSuccess(w, []byte(""))
+}
+
+// FunctionLogsApiPost establishes a proxy server to log database, and redirect
+// query command send from client to database then proxy back the db response.
+func (api *API) FunctionLogsApiPost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	// get dbType from url
+	dbType := vars["dbType"]
+
+	// find correspond db http url
+	dbCnf := api.getLogDBConfig(dbType)
+
+	svcUrl, err := url.Parse(dbCnf.httpURL)
+	if err != nil {
+		log.Printf("Failed to establish proxy server for function logs: %v", err)
+	}
+	// set up proxy server director
+	director := func(req *http.Request) {
+		// only replace url Scheme and Host to remote influxDB
+		// and leave query string intact
+		req.URL.Scheme = svcUrl.Scheme
+		req.URL.Host = svcUrl.Host
+		req.URL.Path = svcUrl.Path
+		// set up http basic auth for database authentication
+		req.SetBasicAuth(dbCnf.username, dbCnf.password)
+	}
+	proxy := &httputil.ReverseProxy{
+		Director: director,
+	}
+	proxy.ServeHTTP(w, r)
 }

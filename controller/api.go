@@ -21,29 +21,41 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/fission/fission"
+	"github.com/fission/fission/fission/logdb"
 )
 
-type API struct {
-	FunctionStore
-	HTTPTriggerStore
-	TimeTriggerStore
-	EnvironmentStore
-	WatchStore
-}
+type (
+	API struct {
+		FunctionStore
+		HTTPTriggerStore
+		TimeTriggerStore
+		MessageQueueTriggerStore
+		EnvironmentStore
+		WatchStore
+	}
+
+	logDBConfig struct {
+		httpURL  string
+		username string
+		password string
+	}
+)
 
 func MakeAPI(rs *ResourceStore) *API {
 	api := &API{
-		FunctionStore:    FunctionStore{ResourceStore: *rs},
-		HTTPTriggerStore: HTTPTriggerStore{ResourceStore: *rs},
-		TimeTriggerStore: TimeTriggerStore{ResourceStore: *rs},
-		EnvironmentStore: EnvironmentStore{ResourceStore: *rs},
-		WatchStore:       WatchStore{ResourceStore: *rs},
+		FunctionStore:            FunctionStore{ResourceStore: *rs},
+		HTTPTriggerStore:         HTTPTriggerStore{ResourceStore: *rs},
+		TimeTriggerStore:         TimeTriggerStore{ResourceStore: *rs},
+		MessageQueueTriggerStore: MessageQueueTriggerStore{ResourceStore: *rs},
+		EnvironmentStore:         EnvironmentStore{ResourceStore: *rs},
+		WatchStore:               WatchStore{ResourceStore: *rs},
 	}
 	return api
 }
@@ -62,6 +74,23 @@ func (api *API) respondWithError(w http.ResponseWriter, err error) {
 	code, msg := fission.GetHTTPError(err)
 	log.Errorf("Error: %v: %v", code, msg)
 	http.Error(w, msg, code)
+}
+
+func (api *API) getLogDBConfig(dbType string) logDBConfig {
+	dbType = strings.ToUpper(dbType)
+	// retrieve db auth config from the env
+	url := os.Getenv(fmt.Sprintf("%s_URL", dbType))
+	if url == "" {
+		// set up default database url
+		url = logdb.INFLUXDB_URL
+	}
+	username := os.Getenv(fmt.Sprintf("%s_USERNAME", dbType))
+	password := os.Getenv(fmt.Sprintf("%s_PASSWORD", dbType))
+	return logDBConfig{
+		httpURL:  url,
+		username: username,
+		password: password,
+	}
 }
 
 func (api *API) HomeHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,6 +131,14 @@ func (api *API) Serve(port int) {
 	r.HandleFunc("/v1/triggers/time/{timeTrigger}", api.TimeTriggerApiGet).Methods("GET")
 	r.HandleFunc("/v1/triggers/time/{timeTrigger}", api.TimeTriggerApiUpdate).Methods("PUT")
 	r.HandleFunc("/v1/triggers/time/{timeTrigger}", api.TimeTriggerApiDelete).Methods("DELETE")
+
+	r.HandleFunc("/v1/triggers/messagequeue", api.MessageQueueTriggerApiList).Methods("GET")
+	r.HandleFunc("/v1/triggers/messagequeue", api.MessageQueueApiCreate).Methods("POST")
+	r.HandleFunc("/v1/triggers/messagequeue/{mqTrigger}", api.MessageQueueApiGet).Methods("GET")
+	r.HandleFunc("/v1/triggers/messagequeue/{mqTrigger}", api.MessageQueueApiUpdate).Methods("PUT")
+	r.HandleFunc("/v1/triggers/messagequeue/{mqTrigger}", api.MessageQueueApiDelete).Methods("DELETE")
+
+	r.HandleFunc("/proxy/{dbType}", api.FunctionLogsApiPost).Methods("POST")
 
 	address := fmt.Sprintf(":%v", port)
 

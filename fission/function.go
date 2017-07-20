@@ -179,9 +179,16 @@ func fnUpdate(c *cli.Context) error {
 	}
 
 	fileName := c.String("code")
+	if len(fileName) == 0 {
+		fileName = c.String("package")
+	}
+
+	if len(envName) == 0 && len(fileName) == 0 {
+		fatal("Need --env or --code or --package argument.")
+	}
+
 	if len(fileName) > 0 {
 		code := fnFetchCode(fileName)
-
 		function.Code = string(code)
 	}
 
@@ -288,11 +295,6 @@ func fnLogs(c *cli.Context) error {
 		fatal("Need name of function, use --name")
 	}
 
-	dbHost := c.String("dbhost")
-	if len(dbHost) == 0 {
-		fatal("Need host address of log database, use --dbhost")
-	}
-
 	dbType := c.String("dbtype")
 	if len(dbType) == 0 {
 		dbType = logdb.INFLUXDB
@@ -304,13 +306,9 @@ func fnLogs(c *cli.Context) error {
 	f, err := client.FunctionGet(m)
 	checkErr(err, "get function")
 
-	auth := logdb.DBConfig{
-		DBType:   dbType,
-		Endpoint: dbHost,
-		Username: c.String("username"),
-		Password: c.String("password"),
-	}
-	logDB, err := logdb.GetLogDB(auth)
+	// client first send db query to controller, then controller will
+	// establishe a proxy server that bridges the client and the database.
+	logDB, err := logdb.GetLogDB(dbType, c.GlobalString("server"))
 	if err != nil {
 		fatal("failed to connect log database")
 	}
@@ -369,11 +367,6 @@ func fnPods(c *cli.Context) error {
 		fatal("Need name of function, use --name")
 	}
 
-	dbHost := c.String("dbhost")
-	if len(dbHost) == 0 {
-		fatal("Need host address of log database, use --dbhost")
-	}
-
 	dbType := c.String("dbtype")
 	if len(dbType) == 0 {
 		dbType = logdb.INFLUXDB
@@ -384,13 +377,9 @@ func fnPods(c *cli.Context) error {
 	f, err := client.FunctionGet(m)
 	checkErr(err, "get function")
 
-	auth := logdb.DBConfig{
-		DBType:   dbType,
-		Endpoint: dbHost,
-		Username: c.String("username"),
-		Password: c.String("password"),
-	}
-	logDB, err := logdb.GetLogDB(auth)
+	// client first sends db query to the controller, then the controller
+	// will establish a proxy server that bridges the client and the database.
+	logDB, err := logdb.GetLogDB(dbType, c.GlobalString("server"))
 	if err != nil {
 		fatal("failed to connect log database")
 	}
@@ -404,6 +393,7 @@ func fnPods(c *cli.Context) error {
 		fatal("failed to get pods of function")
 		return err
 	}
+	fmt.Printf("NAME\t\n")
 	for _, pod := range pods {
 		fmt.Println(pod)
 	}

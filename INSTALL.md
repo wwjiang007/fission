@@ -1,14 +1,18 @@
-  * [Running Fission on your Cluster](#running-fission-on-your-cluster)
-     * [Setup Kubernetes](#setup-kubernetes)
-        * [Mac](#install-and-start-kubernetes-on-osx)
-        * [Linux](#or-install-and-start-kubernetes-on-linux)
-     * [Verify access to the cluster](#verify-access-to-the-cluster)
-     * [Get and Run Fission: Minikube or Local cluster](#get-and-run-fission-minikube-or-local-cluster)
-     * [Get and Run Fission: GKE or other Cloud](#get-and-run-fission-gke-or-other-cloud)
-     * [Install the client CLI](#install-the-client-cli)
-     * [Run an example](#run-an-example)
-     * [Enable Persistent Function Logs (Optional)](#enable-persistent-function-logs-optional)
-     * [Use the web based Fission-ui (Optional)](#use-the-web-based-fission-ui-optional)
+
+- [Running Fission on your Cluster](#running-fission-on-your-cluster)
+  * [Setup Kubernetes](#setup-kubernetes)
+    + [Install and start Kubernetes on OSX:](#install-and-start-kubernetes-on-osx)
+    + [Or, install and start Kubernetes on Linux:](#or-install-and-start-kubernetes-on-linux)
+  * [Verify access to the cluster](#verify-access-to-the-cluster)
+  * [Get and Run Fission: Minikube or Local cluster](#get-and-run-fission-minikube-or-local-cluster)
+  * [Get and Run Fission: GKE or other Cloud](#get-and-run-fission-gke-or-other-cloud)
+  * [Get and Run Fission: OpenShift](#get-and-run-fission-openshift)
+    + [Using Minishift or Local Cluster](#using-minishift-or-local-cluster)
+    + [Using other clouds](#using-other-clouds)
+  * [Install the client CLI](#install-the-client-cli)
+  * [Run an example](#run-an-example)
+  * [Enable Persistent Function Logs (Optional)](#enable-persistent-function-logs-optional)
+  * [Use the web based Fission-ui (Optional)](#use-the-web-based-fission-ui-optional)
 
 ## Running Fission on your Cluster
 
@@ -45,8 +49,8 @@ set up services with NodePort.  This exposes fission on ports 31313
 and 31314.
 
 ```
-  $ kubectl create -f http://fission.io/fission.yaml
-  $ kubectl create -f http://fission.io/fission-nodeport.yaml
+  $ kubectl create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-rbac.yaml
+  $ kubectl create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-nodeport.yaml
 ```
 
 Set the FISSION_URL and FISSION_ROUTER environment variables.
@@ -68,8 +72,8 @@ If you're using GKE or any other cloud provider that supports the
 LoadBalancer service type, use these commands:
 
 ```
-  $ kubectl create -f http://fission.io/fission.yaml
-  $ kubectl create -f http://fission.io/fission-cloud.yaml
+  $ kubectl create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-rbac.yaml
+  $ kubectl create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-cloud.yaml
 ```
 
 Save the external IP addresses of controller and router services in
@@ -84,8 +88,11 @@ svc```).  Then:
 
 ### Get and Run Fission: OpenShift
 
-If you're using OpenShift, it's possible to run Fission on it! The deployment
-template needs to be deployed as a user with cluster-admin permissions (like `system:admin`), as it needs to create a `ClusterRole` for deploying function containers from the `fission` namespace/project.
+If you're using OpenShift, it's possible to run Fission on it! The
+deployment template needs to be deployed as a user with cluster-admin
+permissions (like `system:admin`), as it needs to create a
+`ClusterRole` for deploying function containers from the `fission`
+namespace/project.
 
 Identically as with Kubernetes, you need to set the FISSION_URL and FISSION_ROUTER environment variables. If you're using minishift, use these commands:
 
@@ -93,20 +100,47 @@ Identically as with Kubernetes, you need to set the FISSION_URL and FISSION_ROUT
   $ export FISSION_URL=http://$(minishift ip):31313¬
   $ export FISSION_ROUTER=$(minishift ip):31314¬
 ```
+#### Using Minishift or Local Cluster
+
+If you're using minishift or no cloud provider, use these commands to set up services with NodePort. This exposes fission on ports 31313 and 31314.
+
+```
+  $ oc login -u system:admin
+  $ oc create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-openshift.yaml
+  $ oc create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-nodeport.yaml
+```
+
+#### Using other clouds
+
+If you're using any cloud provider that supports the LoadBalancer service type, use these commands:
+
+```
+$ oc login -u system:admin
+$ oc create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-openshift.yaml
+$ oc create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-cloud.yaml
+```
+After these steps, you should be able to run fission client as with kubernetes.
 
 ### Install the client CLI
+
+#### Mac OS
 
 Get the CLI binary for Mac:
 
 ```
-  $ curl http://fission.io/mac/fission > fission && chmod +x fission && sudo mv fission /usr/local/bin/
+  $ curl -Lo fission https://github.com/fission/fission/releases/download/nightly20170705/fission-cli-osx && chmod +x fission && sudo mv fission /usr/local/bin/
 ```
 
-Or Linux:
+#### Linux
 
 ```
-  $ curl http://fission.io/linux/fission > fission && chmod +x fission && sudo mv fission /usr/local/bin/
+  $ curl -Lo fission https://github.com/fission/fission/releases/download/nightly20170705/fission-cli-linux && chmod +x fission && sudo mv fission /usr/local/bin/
 ```
+
+#### Windows
+
+For Windows, you can use the linux binary on WSL. Or you can download
+this windows executable: [fission.exe](https://github.com/fission/fission/releases/download/nightly20170705/fission-cli-windows.exe)
 
 ### Run an example
 
@@ -129,30 +163,13 @@ Finally, you're ready to use Fission!
 ### Enable Persistent Function Logs (Optional)
 
 Fission uses InfluxDB to store logs and fluentd to forward them from
-function pods into InfluxDB.  To setup both InfluxDB and fluentd:
-
-Edit `fission-logger.yaml` to add a username and password for the
-Influxdb deployment.  Then:
+function pods into InfluxDB.  
 
 ```
   $ kubectl create -f fission-logger.yaml
 ```
 
-On the client side,
-
-If you're using minikube or a local cluster:
-
-```
-$ export FISSION_LOGDB=http://$(minikube ip):31315
-```
-
-If you're using GKE or other cloud:
-
-```
-$ export FISSION_LOGDB=http://$(kubectl --namespace fission get svc influxdb -o=jsonpath='{..ip}'):8086
-```
-
-That's it for setup.  You can now use this to view function logs:
+That's it for the basic setup.  You can now use following command to view function logs:
 
 ```
   $ fission function logs --name hello
@@ -176,10 +193,29 @@ It allows users to observe and manage fission. It also provides a simple online 
 To setup Fission-ui with fission in k8s is simple:
 
 ```bash
-  # After Fission deployed
+  # Run this after fission is deployed
   $ kubectl create -f https://raw.githubusercontent.com/fission/fission-ui/master/docker/fission-ui.yaml
 ```
 
 Then open `http://node-ip:31319` to use Fission-ui.
 
 For more infomation, please check out [Fission-ui Readme](https://github.com/fission/fission-ui/blob/master/README.md).
+
+### Install NATS for message-queue based triggers (Optional)
+
+Fission supports message queue triggers that allow you to invoke
+functions based on events in a queue.  For now, NATS-Streaming is the
+only supported message queue.
+
+You can install NATS Streaming on your Kubernetes cluster with:
+
+```
+  $ kubectl create -f https://github.com/fission/fission/releases/download/nightly20170705/fission-nats.yaml
+```
+
+You can subscribe to a NATS Streaming queue with a command like this:
+(See `fission mqtrigger --help` for details)
+
+```
+  $ fission mqtrigger create --name myQueueTrigger --function processEvent --topic "myQueue.request" 
+```
